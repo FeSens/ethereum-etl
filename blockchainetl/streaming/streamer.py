@@ -53,8 +53,10 @@ class Streamer:
 
         if self.start_block is not None or not os.path.isfile(self.last_synced_block_file):
             init_last_synced_block_file((self.start_block or 0) - 1, self.last_synced_block_file)
-
-        self.last_synced_block = read_last_synced_block(self.last_synced_block_file)
+        
+        self.last_synced_block = self.blockchain_streamer_adapter.get_last_synced_block()
+        if(self.last_synced_block == 0):
+            read_last_synced_block(self.last_synced_block_file)
 
     def stream(self):
         try:

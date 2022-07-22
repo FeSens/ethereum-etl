@@ -2,7 +2,7 @@ import collections
 import json
 import logging
 
-from confluent_kafka import Producer
+from confluent_kafka import Producer, Consumer
 
 from blockchainetl.jobs.exporters.converters.composite_item_converter import CompositeItemConverter
 
@@ -20,6 +20,22 @@ class KafkaItemExporter:
             'transactional.id': 'ethereumetl',
             'enable.idempotence': True,
         })
+
+        self.consumer = Consumer({
+            'bootstrap.servers': self.connection_url,
+            'group.id': 'ethereumetl',
+            'auto.offset.reset': 'largest',
+        })
+
+    def get_last_synced_block(self):
+        self.consumer.subscribe([f'{self.topic_prefix}blocks'])
+        message = self.consumer.consume()
+        try:
+            print(json.loads(message.value())['number'])
+            print(int(json.loads(message.value())['number']))
+            return int(json.loads(message.value())['number'])
+        except:
+            return 0
 
     def get_connection_url(self, output):
         try:
