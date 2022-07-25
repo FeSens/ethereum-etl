@@ -56,7 +56,7 @@ class Streamer:
         
         self.last_synced_block = self.blockchain_streamer_adapter.get_last_synced_block()
         if(self.last_synced_block == 0):
-            read_last_synced_block(self.last_synced_block_file)
+            self.last_synced_block = read_last_synced_block(self.last_synced_block_file)
 
     def stream(self):
         try:
