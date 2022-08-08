@@ -1,6 +1,7 @@
 import collections
 import json
 import logging
+from hashlib import sha256
 
 from confluent_kafka import Producer, Consumer, TopicPartition
 
@@ -19,6 +20,7 @@ class KafkaItemExporter:
             'bootstrap.servers': self.connection_url,
             'transactional.id': 'ethereumetl-producer',
             'enable.idempotence': True,
+            'message.max.bytes': 16000012,
         })
 
         self.consumer = Consumer({
@@ -71,17 +73,21 @@ class KafkaItemExporter:
 
     def export_items(self, items):
         self.producer.begin_transaction()
+        
         for item in items:
             self.export_item(item)
+        
+        self.producer.produce(self.topic_prefix + "full_block", value=self.pack_full_block(items))
+        
         self.producer.commit_transaction()
         
     def export_item(self, item):
         item_type = item.get('type')
-        block_number = item.get('block_number') or item.get('number')
+        key = item.get('number') or sha256(json.dumps(item).encode('utf-8')).hexdigest()
         if item_type is not None and item_type in self.item_type_to_topic_mapping:
             data = json.dumps(item).encode('utf-8')
             logging.debug(data)
-            return self.producer.produce(self.topic_prefix + self.item_type_to_topic_mapping[item_type], value=data, key=json.dumps(block_number).encode('utf-8'))
+            return self.producer.produce(self.topic_prefix + self.item_type_to_topic_mapping[item_type], value=data, key=json.dumps(key).encode('utf-8'))
         else:
             logging.warning('Topic for item type "{}" is not configured.'.format(item_type))
 
@@ -91,6 +97,20 @@ class KafkaItemExporter:
 
     def close(self):
        pass
+
+    def pack_full_block(self, items):
+        full_block = {}
+        for item in items:
+            item_type = self.item_type_to_topic_mapping[item.get('type')]
+            
+            if item_type is not None and item_type in ["blocks", "logs", "transactions", "token_transfers"]:
+                if item_type not in full_block:
+                    full_block[item_type] = []
+                full_block[item_type].append(item)
+        
+        encoded_message = json.dumps(full_block).encode('utf-8')
+        logging.info(f"Trying to produce a message of size: {len(encoded_message)} bytes")
+        return encoded_message
         
 def group_by_item_type(items):
     result = collections.defaultdict(list)
