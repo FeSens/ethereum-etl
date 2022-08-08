@@ -41,7 +41,7 @@ class Streamer:
             block_batch_size=10,
             retry_errors=True,
             pid_file=None,
-            heal_probe="heal_probe"):
+            health_probe_file="health_probe"):
         self.blockchain_streamer_adapter = blockchain_streamer_adapter
         self.last_synced_block_file = last_synced_block_file
         self.lag = lag
@@ -51,7 +51,7 @@ class Streamer:
         self.block_batch_size = block_batch_size
         self.retry_errors = retry_errors
         self.pid_file = pid_file
-        self.health_probe = heal_probe
+        self.health_probe_file = health_probe_file
 
         if self.start_block is not None or not os.path.isfile(self.last_synced_block_file):
             init_last_synced_block_file((self.start_block or 0) - 1, self.last_synced_block_file)
@@ -81,7 +81,7 @@ class Streamer:
             try:
                 synced_blocks = self._sync_cycle()
                 fail_count = 0
-                write_health_probe(self.health_probe, "OK")
+                write_health_probe(self.health_probe_file, "OK")
             except Exception as e:
                 # https://stackoverflow.com/a/4992124/1580227
                 logging.exception('An exception occurred while syncing block data.')
@@ -95,7 +95,7 @@ class Streamer:
             
             if fail_count >= 10:
                 logging.warning('Too many errors. Updating Health Probe...')
-                write_health_probe(self.health_probe, "FAIL")
+                write_health_probe(self.health_probe_file, "FAIL")
 
     def _sync_cycle(self):
         current_block = self.blockchain_streamer_adapter.get_current_block_number()
