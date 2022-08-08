@@ -40,3 +40,6 @@ class MultiItemExporter:
     def close(self):
         for exporter in self.item_exporters:
             exporter.close()
+
+    def get_last_synced_block(self):
+        return max(exporter.get_last_synced_block() for exporter in self.item_exporters)

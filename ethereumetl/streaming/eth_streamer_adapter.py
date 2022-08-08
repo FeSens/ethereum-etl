@@ -35,6 +35,9 @@ class EthStreamerAdapter:
 
     def open(self):
         self.item_exporter.open()
+    
+    def get_last_synced_block(self):
+        return self.item_exporter.get_last_synced_block()
 
     def get_current_block_number(self):
         w3 = build_web3(self.batch_web3_provider)
