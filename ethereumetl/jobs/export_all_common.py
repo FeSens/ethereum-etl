@@ -123,34 +123,6 @@ def export_all_common(partitions, output_dir, provider_uri, max_workers, batch_s
             export_transactions=transactions_file is not None)
         job.run()
 
-        # # # token_transfers # # #
-
-        token_transfers_file = None
-        if is_log_filter_supported(provider_uri):
-            token_transfers_output_dir = '{output_dir}/token_transfers{partition_dir}'.format(
-                output_dir=output_dir,
-                partition_dir=partition_dir,
-            )
-            os.makedirs(os.path.dirname(token_transfers_output_dir), exist_ok=True)
-
-            token_transfers_file = '{token_transfers_output_dir}/token_transfers_{file_name_suffix}.csv'.format(
-                token_transfers_output_dir=token_transfers_output_dir,
-                file_name_suffix=file_name_suffix,
-            )
-            logger.info('Exporting ERC20 transfers from blocks {block_range} to {token_transfers_file}'.format(
-                block_range=block_range,
-                token_transfers_file=token_transfers_file,
-            ))
-
-            job = ExportTokenTransfersJob(
-                start_block=batch_start_block,
-                end_block=batch_end_block,
-                batch_size=batch_size,
-                web3=ThreadLocalProxy(lambda: build_web3(get_provider_from_uri(provider_uri))),
-                item_exporter=token_transfers_item_exporter(token_transfers_file),
-                max_workers=max_workers)
-            job.run()
-
         # # # receipts_and_logs # # #
 
         cache_output_dir = '{output_dir}/.tmp{partition_dir}'.format(
@@ -241,41 +213,6 @@ def export_all_common(partitions, output_dir, provider_uri, max_workers, batch_s
                 item_exporter=contracts_item_exporter(contracts_file),
                 max_workers=max_workers)
             job.run()
-
-        # # # tokens # # #
-
-        if token_transfers_file is not None:
-            token_addresses_file = '{cache_output_dir}/token_addresses_{file_name_suffix}'.format(
-                cache_output_dir=cache_output_dir,
-                file_name_suffix=file_name_suffix,
-            )
-            logger.info('Extracting token_address from token_transfers file {token_transfers_file}'.format(
-                token_transfers_file=token_transfers_file,
-            ))
-            extract_csv_column_unique(token_transfers_file, token_addresses_file, 'token_address')
-
-            tokens_output_dir = '{output_dir}/tokens{partition_dir}'.format(
-                output_dir=output_dir,
-                partition_dir=partition_dir,
-            )
-            os.makedirs(os.path.dirname(tokens_output_dir), exist_ok=True)
-
-            tokens_file = '{tokens_output_dir}/tokens_{file_name_suffix}.csv'.format(
-                tokens_output_dir=tokens_output_dir,
-                file_name_suffix=file_name_suffix,
-            )
-            logger.info('Exporting tokens from blocks {block_range} to {tokens_file}'.format(
-                block_range=block_range,
-                tokens_file=tokens_file,
-            ))
-
-            with smart_open(token_addresses_file, 'r') as token_addresses:
-                job = ExportTokensJob(
-                    token_addresses_iterable=(token_address.strip() for token_address in token_addresses),
-                    web3=ThreadLocalProxy(lambda: build_web3(get_provider_from_uri(provider_uri))),
-                    item_exporter=tokens_item_exporter(tokens_file),
-                    max_workers=max_workers)
-                job.run()
 
         # # # finish # # #
         shutil.rmtree(os.path.dirname(cache_output_dir))
