@@ -18,7 +18,7 @@ class KafkaItemExporter:
         print(self.connection_url, self.topic_prefix)
         self.producer = Producer({
             'bootstrap.servers': self.connection_url,
-            'transactional.id': 'ethereumetl-producer',
+            'transactional.id': f'ethereumetl-producer-{self.topic_prefix}',
             'enable.idempotence': True,
             'message.max.bytes': 16000012,
         })
@@ -77,7 +77,7 @@ class KafkaItemExporter:
         for item in items:
             self.export_item(item)
         
-        self.producer.produce(self.topic_prefix + "full_block", value=self.pack_full_block(items))
+        # self.producer.produce(self.topic_prefix + "full_block", value=self.pack_full_block(items))
         
         self.producer.commit_transaction()
         

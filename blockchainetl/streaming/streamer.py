@@ -90,7 +90,7 @@ class Streamer:
                     raise e
 
             if synced_blocks <= 0:
-                logging.info('Nothing to sync. Sleeping for {} seconds...'.format(self.period_seconds))
+                logging.info('Nothing to sync. Sleeping for {} seconds...\n Fail count is {}'.format(self.period_seconds, fail_count))
                 time.sleep(self.period_seconds)
             
             if fail_count >= 10:
