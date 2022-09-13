@@ -29,6 +29,7 @@ from ethereumetl.service.eth_special_trace_service import EthSpecialTraceService
 from ethereumetl.service.trace_id_calculator import calculate_trace_ids
 from ethereumetl.service.trace_status_calculator import calculate_trace_statuses
 from ethereumetl.utils import validate_range
+import logging
 
 
 class ExportTracesJob(BaseJob):
@@ -58,10 +59,13 @@ class ExportTracesJob(BaseJob):
         self.include_genesis_traces = include_genesis_traces
         self.include_daofork_traces = include_daofork_traces
 
+        self.logger = logging.getLogger('ExportTracesJob')
+
     def _start(self):
         self.item_exporter.open()
 
     def _export(self):
+        self.logger.info('Exporting traces Job started')
         self.batch_work_executor.execute(
             range(self.start_block, self.end_block + 1),
             self._export_batch,

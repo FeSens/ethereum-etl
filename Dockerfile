@@ -12,4 +12,4 @@ ENV TINI_VERSION v0.18.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 
-ENTRYPOINT ethereumetl stream --provider-uri ${GETH_URL} --start-block ${START_BLOCK} --output kafka/${KAFKA_URL} --entity-types ${ENTITY_TYPES} --batch-size ${BATCH_SIZE} --block-batch-size ${BLOCK_BATCH_SIZE}
+ENTRYPOINT ethereumetl stream --provider-uri ${GETH_URL} --start-block ${START_BLOCK} --end-block ${END_BLOCK} --output kafka/${KAFKA_URL} --entity-types ${ENTITY_TYPES} --batch-size ${BATCH_SIZE} --max-workers ${MAX_WORKERS} --block-batch-size ${BLOCK_BATCH_SIZE}

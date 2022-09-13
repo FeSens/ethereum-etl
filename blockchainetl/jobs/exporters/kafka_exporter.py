@@ -1,7 +1,10 @@
 import collections
+import imp
 import json
 import logging
 from hashlib import sha256
+from random import randint
+import ujson
 
 from confluent_kafka import Producer, Consumer, TopicPartition
 
@@ -18,9 +21,14 @@ class KafkaItemExporter:
         print(self.connection_url, self.topic_prefix)
         self.producer = Producer({
             'bootstrap.servers': self.connection_url,
-            'transactional.id': f'ethereumetl-producer-{self.topic_prefix}',
-            'enable.idempotence': True,
+            #'transactional.id': f'ethereumetl-producer-{self.topic_prefix}-sync-{randint(0, 1000000000)}',
+            #'enable.idempotence': False,
             'message.max.bytes': 16000012,
+            'batch.size': 1024000,
+            'queue.buffering.max.messages': 10000000,
+            'acks': 1,
+            'batch.num.messages': 1000000,
+            'linger.ms': 100,
         })
 
         self.consumer = Consumer({
@@ -53,7 +61,7 @@ class KafkaItemExporter:
 
         except Exception as e:
             print(e)
-            return 0
+        return 0
 
 
     def get_connection_url(self, output):
@@ -69,25 +77,27 @@ class KafkaItemExporter:
             return ''
 
     def open(self):
-        self.producer.init_transactions()
+        pass
+        #self.producer.init_transactions()
 
     def export_items(self, items):
-        self.producer.begin_transaction()
-        
+        #self.producer.begin_transaction()
+        logging.info(f"Trying to produce {len(items)} items, there are: {len(self.producer)} messages in the queue")
         for item in items:
             self.export_item(item)
+        logging.info(f"After exporting items, there are: {len(self.producer)} messages in the queue")
+        self.producer.poll(0)
         
         # self.producer.produce(self.topic_prefix + "full_block", value=self.pack_full_block(items))
         
-        self.producer.commit_transaction()
+        #self.producer.commit_transaction()
         
     def export_item(self, item):
         item_type = item.get('type')
-        key = item.get('number') or sha256(json.dumps(item).encode('utf-8')).hexdigest()
         if item_type is not None and item_type in self.item_type_to_topic_mapping:
-            data = json.dumps(item).encode('utf-8')
+            data = ujson.dumps(item).encode('utf-8')
             logging.debug(data)
-            return self.producer.produce(self.topic_prefix + self.item_type_to_topic_mapping[item_type], value=data, key=json.dumps(key).encode('utf-8'))
+            return self.producer.produce(self.topic_prefix + self.item_type_to_topic_mapping[item_type], value=data)
         else:
             logging.warning('Topic for item type "{}" is not configured.'.format(item_type))
 
@@ -96,7 +106,7 @@ class KafkaItemExporter:
             yield self.converter.convert_item(item)
 
     def close(self):
-       pass
+       self.producer.flush()
 
     def pack_full_block(self, items):
         full_block = {}
@@ -108,7 +118,7 @@ class KafkaItemExporter:
                     full_block[item_type] = []
                 full_block[item_type].append(item)
         
-        encoded_message = json.dumps(full_block).encode('utf-8')
+        encoded_message = ujson.dumps(full_block).encode('utf-8')
         logging.info(f"Trying to produce a message of size: {len(encoded_message)} bytes")
         return encoded_message
         

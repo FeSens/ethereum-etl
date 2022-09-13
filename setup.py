@@ -47,6 +47,7 @@ setup(
             'google-cloud-pubsub==2.1.0',
             'google-cloud-storage==1.33.0',
             'confluent-kafka==1.9.0',
+            'ujson==5.4.0',
             'sqlalchemy==1.4',
             'pg8000==1.16.6',
             # This library is a dependency for google-cloud-pubsub, starting from 0.3.22 it requires Rust,

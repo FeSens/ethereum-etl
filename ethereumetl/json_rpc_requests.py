@@ -20,7 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 def generate_get_block_by_number_json_rpc(block_numbers, include_transactions):
     for idx, block_number in enumerate(block_numbers):
         yield generate_json_rpc(
@@ -48,6 +47,15 @@ def generate_get_receipt_json_rpc(transaction_hashes):
             request_id=idx
         )
 
+def generate_get_log_json_rpc(blocks):
+    yield generate_json_rpc(
+        method='eth_getLogs',
+        params=[{
+        "fromBlock": min(blocks),
+        "toBlock": max(blocks) + 1,
+        }],
+        request_id=1
+    )
 
 def generate_get_code_json_rpc(contract_addresses, block='latest'):
     for idx, contract_address in enumerate(contract_addresses):

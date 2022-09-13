@@ -5,6 +5,7 @@ from blockchainetl.jobs.exporters.in_memory_item_exporter import InMemoryItemExp
 from ethereumetl.enumeration.entity_type import EntityType
 from ethereumetl.jobs.export_blocks_job import ExportBlocksJob
 from ethereumetl.jobs.export_receipts_job import ExportReceiptsJob
+from ethereumetl.jobs.export_logs_job import ExportLogsJob
 from ethereumetl.jobs.export_traces_job import ExportTracesJob
 from ethereumetl.jobs.extract_contracts_job import ExtractContractsJob
 from ethereumetl.jobs.extract_token_transfers_job import ExtractTokenTransfersJob
@@ -44,16 +45,21 @@ class EthStreamerAdapter:
         return int(w3.eth.getBlock("latest").number)
 
     def export_all(self, start_block, end_block):
+        logging.info(f"{self.batch_size}, {self.max_workers}")
+        logging.info('Exporting blocks and transactions')
         # Export blocks and transactions
         blocks, transactions = [], []
         if self._should_export(EntityType.BLOCK) or self._should_export(EntityType.TRANSACTION):
             blocks, transactions = self._export_blocks_and_transactions(start_block, end_block)
 
+        logging.info('Exporting receipts and logs')
         # Export receipts and logs
         receipts, logs = [], []
-        if self._should_export(EntityType.RECEIPT) or self._should_export(EntityType.LOG):
-            receipts, logs = self._export_receipts_and_logs(transactions)
-
+        # if self._should_export(EntityType.RECEIPT) or self._should_export(EntityType.LOG):
+        #     receipts, logs = self._export_receipts_and_logs(transactions)
+        if self._should_export(EntityType.LOG):
+            logs = self._export_logs(start_block, end_block)
+        
         # Extract token transfers
         token_transfers = []
         if self._should_export(EntityType.TOKEN_TRANSFER):
@@ -76,8 +82,9 @@ class EthStreamerAdapter:
 
         enriched_blocks = blocks \
             if EntityType.BLOCK in self.entity_types else []
-        enriched_transactions = enrich_transactions(transactions, receipts) \
-            if EntityType.TRANSACTION in self.entity_types else []
+        enriched_transactions = transactions
+        # enriched_transactions = enrich_transactions(transactions, receipts) \
+        #     if EntityType.TRANSACTION in self.entity_types else []
         enriched_logs = enrich_logs(blocks, logs) \
             if EntityType.LOG in self.entity_types else []
         enriched_token_transfers = enrich_token_transfers(blocks, token_transfers) \
@@ -137,6 +144,20 @@ class EthStreamerAdapter:
         receipts = exporter.get_items('receipt')
         logs = exporter.get_items('log')
         return receipts, logs
+    
+    def _export_logs(self, fromBlock, toBlock):
+        exporter = InMemoryItemExporter(item_types=['log'])
+        job = ExportLogsJob(
+            fromBlock=fromBlock,
+            toBlock=toBlock,
+            batch_size=self.batch_size,
+            batch_web3_provider=self.batch_web3_provider,
+            max_workers=self.max_workers,
+            item_exporter=exporter
+        )
+        job.run()
+        logs = exporter.get_items('log')
+        return logs
 
     def _extract_token_transfers(self, logs):
         exporter = InMemoryItemExporter(item_types=['token_transfer'])
